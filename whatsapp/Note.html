@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عرض ملف PDF باستخدام PDF.js</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            direction: rtl; /* لجعل النص من اليمين إلى اليسار */
+        }
+        #pdf-container {
+            width: 100%;
+            height: 90vh;
+            overflow: auto;
+            text-align: center;
+            background-color: #ccc;
+        }
+        canvas {
+            border: 1px solid #000;
+            margin-bottom: 10px;
+        }
+        #controls {
+            padding: 10px;
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <button id="prev">السابق</button>
+        <span>صفحة: <span id="page_num">1</span> / <span id="page_count">---</span></span>
+        <button id="next">التالي</button>
+    </div>
+    <div id="pdf-container">
+        <canvas id="pdf-render"></canvas>
+    </div>
+
+    <!-- تضمين مكتبة PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.min.js"></script>
+    <script>
+        const url = 'https://localhost:44370/ProgramFile/whatsappHelp.pdf'; // استبدل هذا بالمسار الصحيح لملف PDF الخاص بك
+
+        let pdfDoc = null,
+            pageNum = 1,
+            pageIsRendering = false,
+            pageNumIsPending = null;
+
+        const scale = 1.5,
+              canvas = document.getElementById('pdf-render'),
+              ctx = canvas.getContext('2d');
+
+        // تحميل ملف PDF
+        pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+            pdfDoc = pdfDoc_;
+            document.getElementById('page_count').textContent = pdfDoc.numPages;
+
+            renderPage(pageNum);
+        }).catch(err => {
+            // عرض الأخطاء في الصفحة
+            const div = document.createElement('div');
+            div.className = 'error';
+            div.appendChild(document.createTextNode(err.message));
+            document.body.insertBefore(div, canvas);
+            // إخفاء عناصر التحكم
+            document.getElementById('controls').style.display = 'none';
+        });
+
+        // عرض صفحة معينة
+        const renderPage = num => {
+            pageIsRendering = true;
+
+            // الحصول على الصفحة
+            pdfDoc.getPage(num).then(page => {
+                const viewport = page.getViewport({ scale });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderCtx = {
+                    canvasContext: ctx,
+                    viewport
+                };
+
+                page.render(renderCtx).promise.then(() => {
+                    pageIsRendering = false;
+
+                    if (pageNumIsPending !== null) {
+                        renderPage(pageNumIsPending);
+                        pageNumIsPending = null;
+                    }
+                });
+
+                // تحديث رقم الصفحة
+                document.getElementById('page_num').textContent = num;
+            });
+        };
+
+        // الانتقال إلى صفحة معينة
+        const queueRenderPage = num => {
+            if (pageIsRendering) {
+                pageNumIsPending = num;
+            } else {
+                renderPage(num);
+            }
+        };
+
+        // الانتقال إلى الصفحة التالية
+        const showNextPage = () => {
+            if (pageNum >= pdfDoc.numPages) {
+                return;
+            }
+            pageNum++;
+            queueRenderPage(pageNum);
+        };
+
+        // الانتقال إلى الصفحة السابقة
+        const showPrevPage = () => {
+            if (pageNum <= 1) {
+                return;
+            }
+            pageNum--;
+            queueRenderPage(pageNum);
+        };
+
+        // ربط الأزرار بالوظائف
+        document.getElementById('next').addEventListener('click', showNextPage);
+        document.getElementById('prev').addEventListener('click', showPrevPage);
+    </script>
+</body>
+</html>
