@@ -135,7 +135,7 @@ exit /b 0
 (
 echo ^<?xml version="1.0" encoding="UTF-8"?^>
 echo ^<item^>
-echo   ^<version^>v%VERSION%^</version^>
+echo   ^<version^>%VERSION%^</version^>
 echo   ^<url^>%URL_GITHUB_DIR%^</url^>
 echo   ^<changelog^>https://github.com/MalikAliQassem/tikhah-soft/raw/main/whatsapp/Note.html^</changelog^>
 echo ^</item^>
@@ -146,12 +146,22 @@ goto :eof
 
 
 :update_autoupdater
-powershell -Command ^
-"(Get-Content '%AUTOUPDATER_FILE%' -Raw) ^
- -replace '<version>.*?</version>', '<version>v%VERSION%</version>' ^
- -replace '<url>.*?</url>', '<url>%URL_GITHUB_DIR%</url>' ^
- -replace '<changelog>.*?</changelog>', '<changelog>https://github.com/MalikAliQassem/tikhah-soft/raw/main/whatsapp/Note.html</changelog>' ^
-| Set-Content '%AUTOUPDATER_FILE%' -Encoding UTF8"
+echo File = %AUTOUPDATER_FILE%
+echo Version = %VERSION%
+echo URL = %URL_GITHUB_DIR%
+if exist %AUTOUPDATER_FILE% (
+   echo FOUND FILE
+) else (
+   echo FILE NOT FOUND
+)
+
+
+
+powershell -NoLogo -NoProfile -Command ^
+"$content = Get-Content '%AUTOUPDATER_FILE%' -Raw; ^
+$content = $content -replace '<version>.*?</version>', '<version>%VERSION%</version>'; ^
+$content = $content -replace '<url>.*?</url>', '<url>%URL_GITHUB_DIR%</url>'; ^
+Set-Content '%AUTOUPDATER_FILE%' $content -Encoding UTF8;"
 
 echo Updated AutoUpdater.xml
 goto :eof
