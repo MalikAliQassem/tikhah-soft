@@ -154,14 +154,14 @@ if exist %AUTOUPDATER_FILE% (
 ) else (
    echo FILE NOT FOUND
 )
-
-
-
-powershell -NoLogo -NoProfile -Command ^
-"$content = Get-Content '%AUTOUPDATER_FILE%' -Raw; ^
-$content = $content -replace '<version>.*?</version>', '<version>%VERSION%</version>'; ^
-$content = $content -replace '<url>.*?</url>', '<url>%URL_GITHUB_DIR%</url>'; ^
-Set-Content '%AUTOUPDATER_FILE%' $content -Encoding UTF8;"
+(
+echo ^<?xml version="1.0" encoding="UTF-8"?^>
+echo ^<item^>
+echo   ^<version^>%VERSION%^</version^>
+echo   ^<url^>%URL_GITHUB_DIR%^</url^>
+echo   ^<changelog^>https://github.com/MalikAliQassem/tikhah-soft/raw/main/whatsapp/Note.html^</changelog^>
+echo ^</item^>
+) > "%AUTOUPDATER_FILE%"
 
 echo Updated AutoUpdater.xml
 goto :eof
