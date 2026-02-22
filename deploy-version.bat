@@ -99,7 +99,7 @@ echo Build Date: %TIMESTAMP% >> "%VERSION_DIR%\version.info"
 echo Release Notes: %RELEASE_NOTES% >> "%VERSION_DIR%\version.info"
 
 :: Fix GitHub URL
-set URL_GITHUB_DIR=https://github.com/MalikAliQassem/tikhah-soft/raw/main/whatsapp/releases/v%VERSION%/SetupThirdParty.zip
+set URL_GITHUB_DIR=https://github.com/MalikAliQassem/tikhah-soft/raw/main/whatsapp/releases/v%VERSION%/ThirdPartySetup.zip
 
 :: Update AutoUpdater.xml
 set AUTOUPDATER_FILE=%VERSION_DIR_BASE%\AutoUpdater.xml
