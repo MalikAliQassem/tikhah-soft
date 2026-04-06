@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>عرض ملف PDF باستخدام PDF.js</title>
+    <title>عرض ملف PDF - GitHub Repository</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -21,6 +21,8 @@
         canvas {
             border: 1px solid #000;
             margin-bottom: 10px;
+            max-width: 100%;
+            height: auto;
         }
         #controls {
             padding: 10px;
@@ -31,6 +33,10 @@
             padding: 10px 20px;
             margin: 0 5px;
             font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #ddd;
         }
         .error {
             color: red;
@@ -41,25 +47,57 @@
             border: 1px solid red;
             border-radius: 5px;
         }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
 
     <div id="controls">
-        <button id="prev">السابق</button>
-        <span>صفحة: <span id="page_num">1</span> / <span id="page_count">---</span></span>
-        <button id="next">التالي</button>
+        <button id="prev">◀ السابق</button>
+        <span style="margin: 0 15px;">صفحة: <span id="page_num">1</span> / <span id="page_count">---</span></span>
+        <button id="next">التالي ▶</button>
     </div>
     <div id="pdf-container">
+        <div class="loading">جاري تحميل ملف PDF...</div>
         <canvas id="pdf-render"></canvas>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.min.js"></script>
     <script>
-        // يمكنك تغيير هذا المسار إلى ملف PDF المحلي أو عبر الإنترنت
-        const url = 'https://github.com/MalikAliQassem/tikhah-soft/raw/main/whatsapp/whatsappHelp.pdf';
+        // تحديد مسار ملف PDF - نفس المجلد الموجود فيه ملف HTML
+        // استبدل 'whatsappHelp.pdf' باسم ملف PDF الخاص بك
+        const pdfFileName = 'whatsappHelp.pdf';
         
-        // إعدادات PDF.js للعمل مع WebView في WinForms
+        // الحصول على المسار الحالي لملف HTML
+        const currentPath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+        
+        // بناء المسار الكامل لملف PDF (نفس المجلد)
+        let pdfUrl = currentPath + pdfFileName;
+        
+        // إذا كان الملف على GitHub (raw content)
+        if (window.location.hostname === 'raw.githubusercontent.com' || 
+            window.location.hostname === 'github.com') {
+            // تحويل رابط GitHub إلى رابط raw
+            if (window.location.hostname === 'github.com') {
+                // استخراج مسار المستودع
+                const pathParts = window.location.pathname.split('/');
+                const username = pathParts[1];
+                const repo = pathParts[2];
+                const branch = pathParts[4] || 'main';
+                const filePath = pathParts.slice(5).join('/');
+                const fileDir = filePath.substring(0, filePath.lastIndexOf('/') + 1);
+                pdfUrl = `https://raw.githubusercontent.com/${username}/${repo}/${branch}/${fileDir}${pdfFileName}`;
+            }
+        }
+        
+        console.log('محاولة تحميل PDF من:', pdfUrl);
+        
+        // إعدادات PDF.js
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.worker.min.js';
 
         let pdfDoc = null,
@@ -67,21 +105,45 @@
             pageIsRendering = false,
             pageNumIsPending = null;
 
-        const scale = 1.5,
+        const scale = 1.2,
               canvas = document.getElementById('pdf-render'),
               ctx = canvas.getContext('2d');
 
+        // عرض رسالة التحميل
+        function showLoading() {
+            const container = document.getElementById('pdf-container');
+            const loadingDiv = document.querySelector('.loading');
+            if (loadingDiv) loadingDiv.style.display = 'block';
+        }
+
+        // إخفاء رسالة التحميل
+        function hideLoading() {
+            const loadingDiv = document.querySelector('.loading');
+            if (loadingDiv) loadingDiv.style.display = 'none';
+        }
+
         // تحميل ملف PDF
-        pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+        pdfjsLib.getDocument(pdfUrl).promise.then(pdfDoc_ => {
             pdfDoc = pdfDoc_;
             document.getElementById('page_count').textContent = pdfDoc.numPages;
+            hideLoading();
             renderPage(pageNum);
         }).catch(err => {
             console.error('خطأ في تحميل PDF:', err);
+            hideLoading();
+            
+            let errorMessage = `فشل تحميل ملف PDF: ${pdfFileName}<br><br>`;
+            errorMessage += `السبب: ${err.message}<br><br>`;
+            errorMessage += `المسار الذي تم محاولة التحميل منه:<br>${pdfUrl}<br><br>`;
+            errorMessage += `<strong>الحلول المقترحة:</strong><br>`;
+            errorMessage += `1. تأكد من وجود ملف ${pdfFileName} في نفس المجلد مع ملف HTML<br>`;
+            errorMessage += `2. تأكد من صحة اسم الملف (الحروف الكبيرة والصغيرة مهمة)<br>`;
+            errorMessage += `3. إذا كنت تستخدم GitHub، تأكد من رفع الملف إلى المستودع<br>`;
+            errorMessage += `4. استخدم المسار المطلق لملف PDF عبر الرابط الخام (raw)`;
+            
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error';
-            errorDiv.innerHTML = `<strong>خطأ في تحميل الملف:</strong><br>${err.message}<br><br>
-                                 <strong>نصيحة:</strong> تأكد من أن ملف PDF متاح على المسار المحدد.`;
+            errorDiv.innerHTML = errorMessage;
             document.getElementById('pdf-container').appendChild(errorDiv);
             document.getElementById('controls').style.display = 'none';
         });

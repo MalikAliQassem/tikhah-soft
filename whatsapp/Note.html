@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar">
 <head>
@@ -9,7 +10,7 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            direction: rtl; /* لجعل النص من اليمين إلى اليسار */
+            direction: rtl;
         }
         #pdf-container {
             width: 100%;
@@ -32,6 +33,78 @@
             margin: 0 5px;
             font-size: 16px;
         }
+        .error {
+            color: red;
+            text-align: center;
+            padding: 20px;
+            margin: 20px;
+            background-color: #ffe6e6;
+            border: 1px solid red;
+            border-radius: 5px;
+        }
+         .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #666;
+        }
+#loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #eee;
+  border-top: 5px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+        .dots {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.dots span {
+  width: 12px;
+  height: 12px;
+  background: #007bff;
+  border-radius: 50%;
+  animation: bounce 0.6s infinite alternate;
+}
+
+.dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+  to {
+    transform: translateY(-10px);
+    opacity: 0.5;
+  }
+}
     </style>
 </head>
 <body>
@@ -42,13 +115,24 @@
         <button id="next">التالي</button>
     </div>
     <div id="pdf-container">
+            <div id="loading">
+        <div class="dots">
+        <span></span>
+        <span></span>
+        <span></span>
+        </div>
+        <p>جاري تحميل الملف...</p>
+        </div>
         <canvas id="pdf-render"></canvas>
     </div>
 
-    <!-- تضمين مكتبة PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.min.js"></script>
     <script>
-        const url = 'https://github.com/MalikAliQassem/tikhah-soft/raw/main/whatsapp/whatsappHelp.pdf'; // استبدل هذا بالمسار الصحيح لملف PDF الخاص بك
+        // يمكنك تغيير هذا المسار إلى ملف PDF المحلي أو عبر الإنترنت
+        const url = 'https://raw.githubusercontent.com/MalikAliQassem/tikhah-soft/main/whatsapp/whatsappHelp.pdf';
+        
+        // إعدادات PDF.js للعمل مع WebView في WinForms
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.worker.min.js';
 
         let pdfDoc = null,
             pageNum = 1,
@@ -59,27 +143,48 @@
               canvas = document.getElementById('pdf-render'),
               ctx = canvas.getContext('2d');
 
+            
+        function showLoading() {
+            const loadingDiv = document.getElementById("loading");
+            if (loadingDiv) loadingDiv.style.display ="flex";
+}
+
+    function hideLoading() {
+        const loadingDiv = document.getElementById("loading");
+    if (loadingDiv) loadingDiv.style.display ="none";
+    }
         // تحميل ملف PDF
         pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
             pdfDoc = pdfDoc_;
             document.getElementById('page_count').textContent = pdfDoc.numPages;
-
+            hideLoading();
             renderPage(pageNum);
         }).catch(err => {
-            // عرض الأخطاء في الصفحة
-            const div = document.createElement('div');
-            div.className = 'error';
-            div.appendChild(document.createTextNode(err.message));
-            document.body.insertBefore(div, canvas);
-            // إخفاء عناصر التحكم
+             console.error('خطأ في تحميل PDF:', err);
+            hideLoading();
+            
+            let errorMessage = `فشل تحميل ملف PDF: ${pdfFileName}<br><br>`;
+            errorMessage += `السبب: ${err.message}<br><br>`;
+            errorMessage += `المسار الذي تم محاولة التحميل منه:<br>${pdfUrl}<br><br>`;
+            errorMessage += `<strong>الحلول المقترحة:</strong><br>`;
+            errorMessage += `1. تأكد من وجود ملف ${pdfFileName} في نفس المجلد مع ملف HTML<br>`;
+            errorMessage += `2. تأكد من صحة اسم الملف (الحروف الكبيرة والصغيرة مهمة)<br>`;
+            errorMessage += `3. إذا كنت تستخدم GitHub، تأكد من رفع الملف إلى المستودع<br>`;
+            errorMessage += `4. استخدم المسار المطلق لملف PDF عبر الرابط الخام (raw)`;
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.innerHTML = errorMessage;
+            document.getElementById('pdf-container').appendChild(errorDiv);
             document.getElementById('controls').style.display = 'none';
+        
         });
 
         // عرض صفحة معينة
         const renderPage = num => {
+            showLoading();
             pageIsRendering = true;
 
-            // الحصول على الصفحة
             pdfDoc.getPage(num).then(page => {
                 const viewport = page.getViewport({ scale });
                 canvas.height = viewport.height;
@@ -92,19 +197,26 @@
 
                 page.render(renderCtx).promise.then(() => {
                     pageIsRendering = false;
-
                     if (pageNumIsPending !== null) {
                         renderPage(pageNumIsPending);
                         pageNumIsPending = null;
                     }
-                });
+                }).catch(function (err) {
+    console.error("حدث خطأ:", err);
+  })
+  .finally(function () {
+      hideLoading();
+  });
+            }).catch(function (err) {
+    console.error("حدث خطأ:", err);
+  })
+  .finally(function () {
+      hideLoading();
+  });
 
-                // تحديث رقم الصفحة
-                document.getElementById('page_num').textContent = num;
-            });
+            document.getElementById('page_num').textContent = num;
         };
 
-        // الانتقال إلى صفحة معينة
         const queueRenderPage = num => {
             if (pageIsRendering) {
                 pageNumIsPending = num;
@@ -113,27 +225,27 @@
             }
         };
 
-        // الانتقال إلى الصفحة التالية
         const showNextPage = () => {
-            if (pageNum >= pdfDoc.numPages) {
-                return;
-            }
+            if (pageNum >= pdfDoc.numPages) return;
             pageNum++;
             queueRenderPage(pageNum);
         };
 
-        // الانتقال إلى الصفحة السابقة
         const showPrevPage = () => {
-            if (pageNum <= 1) {
-                return;
-            }
+            if (pageNum <= 1) return;
             pageNum--;
             queueRenderPage(pageNum);
         };
 
-        // ربط الأزرار بالوظائف
         document.getElementById('next').addEventListener('click', showNextPage);
         document.getElementById('prev').addEventListener('click', showPrevPage);
+        
+        // دعم لوحة المفاتيح
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') showNextPage();
+            if (e.key === 'ArrowLeft') showPrevPage();
+        });
     </script>
 </body>
 </html>
+
